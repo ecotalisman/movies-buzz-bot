@@ -205,3 +205,21 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# --- Project-specific (movies-buzz-bot) ---
+
+# JetBrains / PyCharm
+.idea/
+
+# Local data / logs (if you create them)
+data/
+logs/
+storage/
+
+# Telethon sessions (if added later)
+*.session
+*.session-journal
+
+# OS noise
+.DS_Store
+Thumbs.db
