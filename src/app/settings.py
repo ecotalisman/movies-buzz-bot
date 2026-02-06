@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     tmdb_api_key: str
     tmdb_language: str = "uk-UA"
+    tmdb_fallback_language: str = "en-US"
 
 
 settings = Settings()

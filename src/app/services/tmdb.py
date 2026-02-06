@@ -13,6 +13,8 @@ class TmdbMovie:
     year: int | None
     rating: float | None
     overview: str
+    original_title: str
+    original_language: str
 
 
 class TmdbClient:
@@ -21,12 +23,20 @@ class TmdbClient:
         self._language = language
         self._base_url = "https://api.themoviedb.org/3"
 
-    async def search_movies(self, query: str, *, limit: int = 10) -> list[TmdbMovie]:
+    async def search_movies(
+            self,
+            query: str,
+            *,
+            limit: int = 10,
+            language: str | None = None,
+    ) -> list[TmdbMovie]:
+        lang = language or self._language
+
         params = {
             "api_key": self._api_key,
             "query": query,
             "include_adult": "false",
-            "language": self._language,
+            "language": lang,
             "page": 1,
         }
 
@@ -41,6 +51,8 @@ class TmdbClient:
             title = item.get("title") or item.get("name") or "(без назви)"
             rating = item.get("vote_average")
             overview = item.get("overview") or ""
+            original_title = item.get("original_title") or ""
+            original_language = item.get("original_language") or ""
             year = None
 
             rd = item.get("release_date")
@@ -50,6 +62,16 @@ class TmdbClient:
                 except ValueError:
                     year = None
 
-            out.append(TmdbMovie(tmdb_id=tmdb_id, title=title, year=year, rating=rating, overview=overview))
+            out.append(
+                TmdbMovie(
+                    tmdb_id=tmdb_id,
+                    title=title,
+                    year=year,
+                    rating=rating,
+                    overview=overview,
+                    original_title=original_title,
+                    original_language=original_language,
+                )
+            )
 
         return out
