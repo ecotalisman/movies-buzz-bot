@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from datetime import date
 
 import httpx
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -40,10 +43,16 @@ class TmdbClient:
             "page": 1,
         }
 
+        logger.debug("TMDB search: query=%s, language=%s", query, lang)
+
         async with httpx.AsyncClient(timeout=15) as client:
-            r = await client.get(f"{self._base_url}/search/movie", params=params)
+            url = f"{self._base_url}/search/movie"
+            r = await client.get(url, params=params)
             r.raise_for_status()
             payload = r.json()
+
+        results = payload.get("results", [])
+        logger.info("TMDB returned %d results for query='%s' (status=%d)", len(results), query, r.status_code)
 
         out: list[TmdbMovie] = []
         for item in payload.get("results", [])[:limit]:
@@ -59,8 +68,9 @@ class TmdbClient:
             if rd:
                 try:
                     year = date.fromisoformat(rd).year
-                except ValueError:
+                except ValueError as e:
                     year = None
+                    logger.error("TMDB API error: %s", e, exc_info=True)
 
             out.append(
                 TmdbMovie(

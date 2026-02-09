@@ -5,6 +5,9 @@ from src.app.services.summarize import one_sentence
 from src.app.services.tmdb import TmdbClient
 from src.app.settings import settings
 
+import logging
+
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -23,6 +26,7 @@ async def search(
     year_from: int | None = Query(default=None, ge=1900, le=2100),
     year_to: int | None = Query(default=None, ge=1900, le=2100),
 ) -> SearchResponse:
+    logger.info("Search request: q='%s', limit=%d", q, limit)
     client = TmdbClient(api_key=settings.tmdb_api_key, language=settings.tmdb_language)
 
     fetch_limit = limit * 5
@@ -54,6 +58,8 @@ async def search(
         yf = year_from if year_from is not None else 1900
         yt = year_to if year_to is not None else 2100
         movies = [m for m in movies if (m.year is not None and yf <= m.year <= yt)]
+
+    logger.info("Search '%s' -> %d results", q, len(movies))
 
     movies = movies[:limit]
 

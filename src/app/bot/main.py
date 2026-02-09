@@ -9,6 +9,10 @@ from aiogram.types import Message
 from src.app.bot.api_client import ApiClient
 from src.app.bot.config import bot_settings
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def format_results(payload: dict) -> str:
     results = payload.get("results") or []
@@ -41,23 +45,28 @@ async def start_bot() -> None:
 
     @dp.message(CommandStart())
     async def on_start(message: Message) -> None:
+        logger.info("User %d started the bot", message.from_user.id if message.from_user else None)
         await message.answer(
             "Send a movie title or description. I will return up to 10 results with ratings and a one-sentence summary"
         )
 
     @dp.message(F.text)
     async def on_text(message: Message) -> None:
+        logger.info("Search %s", message.text)
         q = (message.text or "").strip()
         if not q:
             return
 
         try:
             payload = await api.search(q, limit=10)
-        except Exception:
+        except Exception as e:
             await message.answer("Search error. Please try again later")
+            logger.error("Search error as %s", e, exc_info=True)
             return
 
         await message.answer(format_results(payload))
+
+    logger.info("Start Bot")
 
     await dp.start_polling(bot)
 
