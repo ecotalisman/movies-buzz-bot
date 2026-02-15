@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     tmdb_language: str = "uk-UA"
     tmdb_fallback_language: str = "en-US"
     log_level: str = "INFO"
+    scraper_base_url: str
+    selenium_url: str = "http://selenium:4444/wd/hub"
 
 
 settings = Settings()

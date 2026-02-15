@@ -8,6 +8,8 @@ services:
       - "8000:8000"
     volumes:
       - ./src:/app/src
+    depends_on:
+      - selenium
 
   bot:
     build:
@@ -18,3 +20,9 @@ services:
       - api
     volumes:
       - ./src:/app/src
+
+  selenium:
+    image: selenium/standalone-chrome:latest
+    ports:
+      - "4444:4444"
+    shm_size: "2g"
