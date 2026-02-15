@@ -11,3 +11,5 @@ def setup_logging(level: str = "INFO"):
 
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn").handlers = []
+    logging.getLogger("uvicorn.access").handlers = []
