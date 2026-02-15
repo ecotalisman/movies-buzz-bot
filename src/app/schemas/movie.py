@@ -8,6 +8,7 @@ class MovieShort(BaseModel):
     rating: float | None = Field(default=None, description="TMDB vote_average")
     one_liner: str
     tmdb_url: str
+    genres: list[str] | None = None
 
 
 class SearchResponse(BaseModel):

@@ -64,6 +64,8 @@ async def search(
     movies = movies[:limit]
 
     results: list[MovieShort] = []
+    genres = await client.get_genres()
+
     for m in movies:
         results.append(
             MovieShort(
@@ -73,6 +75,7 @@ async def search(
                 rating=m.rating,
                 one_liner=one_sentence(m.overview),
                 tmdb_url=f"https://www.themoviedb.org/movie/{m.tmdb_id}",
+                genres=[genres[gid] for gid in m.genre_ids if gid in genres]
             )
         )
 

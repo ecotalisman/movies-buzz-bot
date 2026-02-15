@@ -26,11 +26,14 @@ def format_results(payload: dict) -> str:
         rating = item.get("rating")
         one_liner = item.get("one_liner") or ""
         url = item.get("tmdb_url") or ""
+        genres_raw = item.get("genres") or []
+        genres = ", ".join(genres_raw) if genres_raw else ""
+        genres_part = f"\n{genres}" if genres else ""
 
         year_part = f" ({year})" if year else ""
         rating_part = f" — {rating:.1f}" if isinstance(rating, (int, float)) else ""
 
-        lines.append(f"{i}) <b>{title}{year_part}</b>{rating_part}\n{one_liner}\n{url}")
+        lines.append(f"{i}) <b>{title}{year_part}</b>{rating_part}{genres_part}\n{one_liner}\n{url}")
 
     return "\n\n".join(lines)
 
