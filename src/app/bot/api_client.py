@@ -8,15 +8,28 @@ class ApiClient:
     def __init__(self, base_url: str) -> None:
         self._base_url = base_url.rstrip("/")
 
-    async def search(self, query: str, limit: int = 10) -> dict:
-        params = {"q": query, "limit": limit}
+    async def search(self, query: str, limit: int = 15) -> dict:
         url = f"{self._base_url}/search"
-
+        params = {"q": query, "limit": limit}
         logger.debug("Outgoing request: GET %s params=%s", url, params)
+        return await self._get(url, params)
 
+    async def top_tmdb(self, limit: int = 15):
+        url = f"{self._base_url}/top/tmdb"
+        params = {"limit": limit}
+        logger.debug("Outgoing limit tmdb: GET %s params=%s", url, params)
+        return await self._get(url, params)
+
+    async def top_scraper(self, limit: int = 15):
+        params = {"limit": limit}
+        url = f"{self._base_url}/top/scraper"
+        logger.debug("Outgoing limit scraper: GET %s params=%s", url, params)
+        return await self._get(url, params)
+
+    async def _get(self, path: str, params: dict) -> dict:
         async with httpx.AsyncClient(timeout=20) as client:
-            r = await client.get(url, params=params)
-            logger.info("Status code %s", r.status_code)
+            r = await client.get(path, params=params)
+            logger.info("GET %s -> status code %s", path, r.status_code)
             try:
                 r.raise_for_status()
             except httpx.HTTPStatusError as e:

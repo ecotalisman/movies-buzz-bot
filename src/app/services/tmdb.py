@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 import httpx
 import logging
@@ -55,40 +55,37 @@ class TmdbClient:
 
         results = payload.get("results", [])
         logger.info("TMDB returned %d results for query='%s' (status=%d)", len(results), query, r.status_code)
+        return [self._parse_movie(item) for item in results[:limit]]
 
-        out: list[TmdbMovie] = []
-        for item in payload.get("results", [])[:limit]:
-            tmdb_id = int(item["id"])
-            title = item.get("title") or item.get("name") or "(untitled)"
-            rating = item.get("vote_average")
-            overview = item.get("overview") or ""
-            original_title = item.get("original_title") or ""
-            original_language = item.get("original_language") or ""
-            year = None
-            genre_ids = item.get("genre_ids", [])
+    async def discover_top(self,
+                           limit: int = 15,
+                           language: str | None = None,
+                           ) -> list[TmdbMovie]:
+        lang = language or self._language
 
-            rd = item.get("release_date")
-            if rd:
-                try:
-                    year = date.fromisoformat(rd).year
-                except ValueError as e:
-                    year = None
-                    logger.error("TMDB API error: %s", e, exc_info=True)
+        date_to = date.today()
+        date_from = date_to - timedelta(days=90)
+        params = {
+            "api_key": self._api_key,
+            "language": lang,
+            "page": 1,
+            "sort_by": "vote_average.desc",
+            "vote_count.gte": 50,
+            "primary_release_date.gte": date_from.isoformat(),
+            "primary_release_date.lte": date_to.isoformat(),
+        }
 
-            out.append(
-                TmdbMovie(
-                    tmdb_id=tmdb_id,
-                    title=title,
-                    year=year,
-                    rating=rating,
-                    overview=overview,
-                    original_title=original_title,
-                    original_language=original_language,
-                    genre_ids=genre_ids,
-                )
-            )
+        logger.debug("TMDB top_rated: limit=%d, language=%s", limit, lang)
 
-        return out
+        async with httpx.AsyncClient(timeout=15) as client:
+            url = f"{self._base_url}/discover/movie"
+            r = await client.get(url, params=params)
+            r.raise_for_status()
+            payload = r.json()
+
+        results = payload.get("results", [])
+        logger.info("TMDB returned %d results for limit='%d' (status=%d)", len(results), limit, r.status_code)
+        return [self._parse_movie(item) for item in results[:limit]]
 
     async def get_genres(self, language=None) -> dict[int, str]:
         if _genres_cache:
@@ -96,9 +93,10 @@ class TmdbClient:
 
         async with httpx.AsyncClient(timeout=15) as client:
             url = f"{self._base_url}/genre/movie/list"
+            lang = language or self._language
             params = {
                 "api_key": self._api_key,
-                "language": self._language,
+                "language": lang,
             }
             r = await client.get(url, params=params)
             r.raise_for_status()
@@ -110,3 +108,23 @@ class TmdbClient:
         _genres_cache.update(genre_map)
 
         return genre_map
+
+    def _parse_movie(self, item: dict) -> TmdbMovie:
+        year = None
+        rd = item.get("release_date")
+        if rd:
+            try:
+                year = date.fromisoformat(rd).year
+            except ValueError as e:
+                logger.error("TMDB API error: %s", e, exc_info=True)
+
+        return TmdbMovie(
+            tmdb_id=int(item["id"]),
+            title=item.get("title") or item.get("name") or "(untitled)",
+            year=year,
+            rating=item.get("vote_average"),
+            overview=item.get("overview") or "",
+            original_title=item.get("original_title") or "",
+            original_language=item.get("original_language") or "",
+            genre_ids=item.get("genre_ids", [])
+        )

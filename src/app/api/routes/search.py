@@ -22,7 +22,7 @@ def is_unlocalized_title(movie) -> bool:
 @router.get("/search", response_model=SearchResponse)
 async def search(
     q: str = Query(min_length=1, max_length=120, description="Search query"),
-    limit: int = Query(default=10, ge=1, le=10),
+    limit: int = Query(default=10, ge=1, le=20),
     year_from: int | None = Query(default=None, ge=1900, le=2100),
     year_to: int | None = Query(default=None, ge=1900, le=2100),
 ) -> SearchResponse:
