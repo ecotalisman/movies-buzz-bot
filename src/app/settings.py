@@ -10,6 +10,19 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     scraper_base_url: str
     selenium_url: str = "http://selenium:4444/wd/hub"
+    postgres_user: str
+    postgres_password: str
+    postgres_host: str
+    postgres_port: int = 5432
+    postgres_db: str
+
+    @property
+    def async_db_url(self) -> str:
+        return f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+
+    @property
+    def sync_db_url(self) -> str:
+        return f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
 
 settings = Settings()
