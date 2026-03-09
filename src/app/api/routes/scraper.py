@@ -1,26 +1,20 @@
 from fastapi import APIRouter, Query
 
-from src.app.schemas.scraper import ScrapedMovieOut, ReviewOut, ScraperResponse
-from src.app.services.scraper import ScraperClient
-from src.app.settings import settings
-
 router = APIRouter()
 
 
-@router.get("/top/scraper", response_model=ScraperResponse)
-def top_scraper(limit: int = 15):
-    client = ScraperClient(
-        selenium_url=settings.selenium_url,
-        base_url=settings.scraper_base_url,
-    )
-    scraped = client.search(limit=limit)
-    results = []
-    for m in scraped:
-        results.append(ScrapedMovieOut(
-            title=m.title,
-            year=m.year,
-            overview=m.overview,
-            reviews=[ReviewOut(author=r.author, text=r.text) for r in m.reviews],
-            page_url=m.page_url,
-        ))
-    return ScraperResponse(count=len(results), results=results)
+@router.post("/scraper/trigger")
+def trigger_scraper(limit: int = 15):
+    from src.app.tasks.scraping import run_scraper
+    task = run_scraper.delay(limit=limit)
+    return {"task_id": task.id, "status": "submitted"}
+
+
+@router.get("/scraper/status/{task_id}")
+def trigger_get(task_id: str):
+    from src.app.tasks.celery_app import celery_app
+    task_result = celery_app.AsyncResult(task_id)
+    response = {"task_id": task_id, "status": task_result.status}
+    if task_result.ready():
+        response["result"] = task_result.result
+    return response

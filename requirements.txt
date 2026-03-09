@@ -9,3 +9,5 @@ sqlalchemy[asyncio]
 asyncpg
 alembic
 psycopg2-binary
+celery[redis]
+redis

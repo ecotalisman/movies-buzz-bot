@@ -88,8 +88,19 @@ class TmdbClient:
         return [self._parse_movie(item) for item in results[:limit]]
 
     async def get_genres(self, language=None) -> dict[int, str]:
+        from src.app.services.redis_cache import get_cached_genres, set_cached_genres
+
         if _genres_cache:
             return _genres_cache
+
+        try:
+            cached = await get_cached_genres()
+            if cached:
+                _genres_cache.update(cached)
+                logger.info("Loaded %d genres from Redis cache", len(cached))
+                return cached
+        except Exception:
+            logger.warning("Redis unavailable, falling through to TMDB API", exc_info=True)
 
         async with httpx.AsyncClient(timeout=15) as client:
             url = f"{self._base_url}/genre/movie/list"
@@ -106,6 +117,11 @@ class TmdbClient:
         genre_map = {genre["id"]: genre["name"] for genre in genres_list}
         logger.info("TMDB returned %s genres", len(genres_list))
         _genres_cache.update(genre_map)
+
+        try:
+            await set_cached_genres(genre_map)
+        except Exception:
+            logger.warning("Failed to cache genres in Redis", exc_info=True)
 
         return genre_map
 

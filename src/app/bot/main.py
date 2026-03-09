@@ -45,25 +45,6 @@ def format_results(payload: dict) -> str:
     return "\n\n".join(lines)
 
 
-def format_scraper_results(payload: dict) -> str:
-    results = payload.get("results") or []
-    if not results:
-        return "Nothing found"
-
-    lines: list[str] = []
-    for i, item in enumerate(results, start=1):
-        title = item.get("title", "(no title)")
-        year = item.get("year")
-        overview = item.get("overview") or ""
-        page_url = item.get("page_url") or ""
-
-        year_part = f" ({year})" if year else ""
-
-        lines.append(f"{i}) <b>{title}{year_part}</b>\n{overview}\n{page_url}")
-
-    return "\n\n".join(lines)
-
-
 async def start_bot() -> None:
     bot = Bot(
         token=bot_settings.telegram_bot_token,
@@ -93,12 +74,16 @@ async def start_bot() -> None:
     @dp.message(F.text == "Top Scraper")
     async def on_top_scraper(message: Message) -> None:
         try:
-            payload = await api.top_scraper(limit=15)
+            payload = await api.trigger_scraper(limit=15)
         except Exception as e:
             await message.answer("Search Top Scraper error. Try again later")
             logger.error("Search Top Scraper error as %s", e, exc_info=True)
             return
-        await message.answer(format_scraper_results(payload))
+
+        if not payload or "task_id" not in payload:
+            await message.answer("Failed to start scraping. Please try again later")
+            return
+        await message.answer(f"Scraping is started! Task ID: <code>{payload.get('task_id')}</code>")
 
     @dp.message(F.text)
     async def on_text(message: Message) -> None:

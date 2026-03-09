@@ -10,6 +10,8 @@ from src.app.api.router import api_router
 from src.app.database.session import async_engine
 import logging
 
+from src.app.services.redis_cache import close_redis
+
 logger = logging.getLogger(__name__)
 
 setup_logging(settings.log_level)
@@ -26,6 +28,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    logger.info("Shutdown: close redis")
+    await close_redis()
     logger.info("Shutdown: disposing async engine...")
     await async_engine.dispose()
     logger.info("Shutdown: done")
