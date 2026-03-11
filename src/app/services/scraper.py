@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+
+
+SECTION_FOREIGN = "Зарубежные фильмы"
+MOVIE_INFO_MARKERS = ["О фильме", "Описание"]
+MOVIE_INFO_TAGS = "b"
 
 
 @dataclass
@@ -36,8 +43,8 @@ class ScraperClient:
             soup = BeautifulSoup(html, "html.parser")
             movie_list = self._get_movie_list(soup, limit)
             results = []
-            for (title, href) in movie_list:
-                movie = self._parse_movie(driver, title, href)
+            for (title, href, year) in movie_list:
+                movie = self._parse_movie(driver, title, href, year)
                 results.append(movie)
             return results
         finally:
@@ -46,7 +53,17 @@ class ScraperClient:
 
 
     def _get_movie_list(self, soup, limit):
-        section_header = soup.find("h2", string=lambda t: t and "Зарубежные фильмы" in t)
+        section_header = None
+
+        for h2 in soup.find_all("h2"):
+            full_text = h2.get_text(strip=True)
+            if SECTION_FOREIGN in full_text:
+                section_header = h2
+                break
+
+        if section_header is None:
+            return []
+
         movies = []
 
         for el in section_header.find_all_next():
@@ -56,25 +73,46 @@ class ScraperClient:
             if el.name == "tr" and ("tum" in classes or "gai" in classes):
                 link = el.find("a", href=lambda h: h and h.startswith("/torrent/"))
                 if link:
-                    movies.append((link.text, link["href"]))
+                    raw_title = link.text
+                    match = re.search(r'\((\d{4})\)', raw_title)
+                    if match:
+                        clean_title = raw_title[:match.end()].strip()
+                        year = int(match.group(1))
+                    else:
+                        clean_title = raw_title.strip()
+                        year = None
+                    movies.append((clean_title, link["href"], year))
             if len(movies) >= limit:
                 break
         return movies
 
-    def _parse_movie(self, driver, title, url):
+    def _parse_movie(self, driver, title, url, year):
         full_url = urljoin(self._base_url, url)
         driver.get(full_url)
         html = driver.page_source
         soup2 = BeautifulSoup(html, "html.parser")
-        marker = soup2.find("b", string=lambda t: t and "О фильме" in t)
+        marker = None
+
+        for b_tag in soup2.find_all(MOVIE_INFO_TAGS):
+            b_text = b_tag.get_text(strip=True)
+            if any(m in b_text for m in MOVIE_INFO_MARKERS):
+                marker = b_tag
+                break
+
         overview = ""
-        if marker and marker.next_sibling:
-            overview = marker.next_sibling.get_text(strip=True)
+        if marker:
+            for sibling in marker.next_siblings:
+                text = sibling.get_text() if hasattr(sibling, "get_text") else str(sibling)
+                clean = text.replace('\xa0', ' ').strip(': \t\n\r')
+                if clean:
+                    overview = clean
+                    break
+
         reviews = self._parse_reviews(soup2)
 
         return ScrapedMovie(
             title=title,
-            year=None,
+            year=year,
             overview=overview,
             reviews=reviews,
             page_url=full_url,
@@ -82,4 +120,3 @@ class ScraperClient:
 
     def _parse_reviews(self, soup):
         return []
-
